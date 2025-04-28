@@ -13,8 +13,17 @@
 import numpy as np
 import string
 import pickle
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
 
-from keras.preprocessing.text import Tokenizer
+import tensorflow.keras as keras
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Embedding, Flatten
+from tensorflow.keras.callbacks import ModelCheckpoint
+
+from sklearn.model_selection import train_test_split
 
 #%% Function to read Hamshahri corpus
 def read_hamshahri_corpus(path):
@@ -129,3 +138,85 @@ print("Total sequences: %d" % len(sequences))
 print(sequences[15])
 
 #%% Tokenize the sequences
+# create a tokenizer object and fit it on the sequences
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(sequences)
+
+# tokenize the sequences into encoded numbers
+sequences = tokenizer.texts_to_sequences(sequences)
+vocab_size = len(tokenizer.word_index) + 1
+sequences = np.array(sequences)
+
+# split the sequences into input (x) and output (y)
+x,y = sequences[:,:-1], sequences[:,-1]
+
+print(sequences[15])
+print(vocab_size)
+
+#%% Convert the output into categorical (one-hot) format requiered for training the model
+y = to_categorical(y, num_classes=vocab_size)
+print(np.shape(y[15]))
+print(y[15])
+print(np.shape(x))
+
+#%% Split data into train, test and validation sets
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=42)
+length = int(len(x_test)*0.5)
+
+y_validation = y_test[:length]
+x_validation = x_test[:length]
+
+y_test = y_test[length:2*length]
+x_test = x_test[length:2*length]
+
+#%% Define plot losses callback
+class PlotLosses(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.i = 0
+        self.x = []
+        self.losses = []
+        self.val_losses = []
+
+        self.fig = plt.figure()
+
+        self.logs = []
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.logs.append(logs)
+        self.x.append(self.i)
+        self.losses.append(logs.get('loss'))
+        self.val_losses.append(logs.get('val_loss'))
+        self.i += 1
+
+        clear_output(wait=True)
+        plt.plot(self.x, self.losses, label="loss")
+        plt.plot(self.x, self.val_losses, label="val_loss")
+        plt.legend()
+        plt.show();
+
+plot_losses = PlotLosses()
+
+#%% Define the model architecture
+model = Sequential()
+model.add(Embedding(vocab_size, 50, input_length=window_size, name='Embedding-layer'))
+model.add(Flatten())
+model.add(Dense(int(vocab_size/2), activation='relu', name='hidden-layer'))
+model.add(Dense(vocab_size, activation='softmax', name='output-layer'))
+
+# print summary of the model architecture
+print(model.summary())
+
+
+#%% Train model
+checkpoint = ModelCheckpoint('./model-{epoch:03d}---{val_accuracy:.4f}.weights.h5', monitor='val_loss', verbose=1, 
+                             save_best_only=True, save_weights_only=True, mode='min')
+
+# compile the model
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# train model
+model.fit(x_train, y_train, 
+          batch_size=50, 
+          epochs=10, 
+          validation_data=(x_validation, y_validation), 
+          callbacks=[checkpoint, plot_losses])
