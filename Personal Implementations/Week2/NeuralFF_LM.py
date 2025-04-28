@@ -220,3 +220,28 @@ model.fit(x_train, y_train,
           epochs=10, 
           validation_data=(x_validation, y_validation), 
           callbacks=[checkpoint, plot_losses])
+
+#%% Load and test the model
+best_model_weights = "model-002---0.1129.weights.h5"
+model.load_weights(best_model_weights)
+
+# predict the class of test data
+res = model.predict_classses(x_test[0:200])
+# %% given the ID od word returns its corresponding word
+def convert_ID_to_word(ID):
+    for word, index in tokenizer.word_index.items():
+        if index == ID:
+            return word
+    return
+
+# given the input sentense as an array of word ids, returns the string of sentence
+def get_sentence_from_IDs(x):
+    sentence = ''
+    for element in x:
+        sentence += convert_ID_to_word(element) + ' '
+    return sentence
+
+# run above functions
+arr = [0, 6, 13, 17, 18, 22, 35, 53, 73, 105, 112, 124, 128, 137, 145, 154, 161, 185]
+for i in arr:
+    print(get_sentence_from_IDs(x_test[i]), " : ", convert_ID_to_word(res[i]))
