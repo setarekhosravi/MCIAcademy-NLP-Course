@@ -216,17 +216,19 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 
 # train model
 model.fit(x_train, y_train, 
-          batch_size=50, 
+          batch_size=100, 
           epochs=10, 
           validation_data=(x_validation, y_validation), 
-          callbacks=[checkpoint, plot_losses])
+          callbacks=[checkpoint])
+        #   callbacks=[checkpoint, plot_losses])
 
 #%% Load and test the model
-best_model_weights = "model-002---0.1129.weights.h5"
+best_model_weights = "model-001---0.1114.weights.h5"
 model.load_weights(best_model_weights)
 
 # predict the class of test data
-res = model.predict_classses(x_test[0:200])
+predictions = model.predict(x_test[0:200])
+res = np.argmax(predictions, axis=1)
 # %% given the ID od word returns its corresponding word
 def convert_ID_to_word(ID):
     for word, index in tokenizer.word_index.items():
